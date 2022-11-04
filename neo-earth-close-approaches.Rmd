@@ -133,6 +133,7 @@ df_future %>%
     ) +
   geom_vline(xintercept = today(), color = "red", alpha = .3) +
   geom_hline(yintercept = LUNAR_DISTANCE, color = "red", alpha = .3) +
+  geom_hline(yintercept = 0, color = "black", alpha = .3) +
   geom_point(
     data = df_past,
     mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Past"),
