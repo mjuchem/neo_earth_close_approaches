@@ -22,22 +22,25 @@ library(ggthemes)
 ```{r, echo=FALSE, include=FALSE}
 
 # https://cneos.jpl.nasa.gov/ca/
-df.raw <- read.xlsx("../data/external/nasa.gov/cneos_closeapproach_data.xlsx")
+df.raw <- read.xlsx("../data/external/nasa.gov/NEO_Earth_Close_Approaches_2022-11-03.xlsx")
 
 ```
 
 ```{r, echo=FALSE, warning=FALSE}
 
+LUNAR_DISTANCE <- 384402
+
 df <- df.raw %>%
   mutate(
     
-    V.infinity.km_s = as.numeric(`V.infinity.(km/s)`),
-    V.relative.km_s = `V.relative.(km/s)`,
+    V.infinity.km_s = as.numeric(`V.infinity(km/s)`),
+    V.relative.km_s = `V.relative(km/s)`,
     
-    tmp = gsub("&gt;", "", `CA.Distance.Nominal.(LD.|.au)`),
-    CA.Distance.Nominal.LD = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 1])),
-    CA.Distance.Nominal.au = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 3])),
+    # tmp = gsub("&gt;", "", `CA.DistanceNominal.(LD.|.au)`),
+    # CA.Distance.Nominal.LD = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 1])),
+    CA.Distance.Nominal.au = `CA.DistanceNominal.(au)`,
     CA.Distance.Nominal.km = CA.Distance.Nominal.au * 149597900,
+    CA.Distance.Nominal.LD = CA.Distance.Nominal.km / LUNAR_DISTANCE,
     
     # tmp = gsub("&gt; ", "", `CA.Distance.Minimum.(LD.|.au)`),
     # tmp = gsub("\t", "", `CA.Distance.Minimum.(LD.|.au)`),
@@ -106,7 +109,15 @@ df_future <- df %>%
   filter(Is.Future)
 
 df_highlight <- df_future %>%
-  filter(CA.Distance.Nominal.km <= 100000)
+  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE)
+
+df_highlight0 <- df_past %>%
+  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE) %>%
+  filter(Diameter.min >= 100)
+
+df_highlight1 <- df_future %>%
+  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE) %>%
+  filter(Diameter.min >= 100)
 
 df_highlight2 <- df_future %>%
   filter(Diameter.min >= 1000)
@@ -120,61 +131,74 @@ df_future %>%
     color = "",
     size = "Diameter"
     ) +
-  scale_y_continuous(label = scales::comma, trans="log10") +
   geom_vline(xintercept = today(), color = "red", alpha = .3) +
-  geom_hline(yintercept = 100000, color = "red", alpha = .3) +
+  geom_hline(yintercept = LUNAR_DISTANCE, color = "red", alpha = .3) +
   geom_point(
     data = df_past,
-    mapping = aes(size = Diameter.min, color = "Past"),
-    # color = "grey",
-    alpha = .2,
+    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Past"),
     na.rm = TRUE
     ) +
   geom_point(
-    mapping = aes(size = Diameter.min, color = "Future"),
-    # color = "black",
+    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Future"),
     alpha = .2,
     na.rm = TRUE
     ) +
   geom_point(
     data = df_highlight2,
-    mapping = aes(size = Diameter.min, color = "Larger than 1 km"),
-    # color = "blue",
-    alpha = .5,
+    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Larger than 1 km"),
     na.rm = TRUE
     ) +
   geom_point(
     data = df_highlight,
-    mapping = aes(size = Diameter.min, color = "Within 100,000 km"),
-    # color = "red",
-    alpha = .7,
+    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Within Lunar Distance"),
     na.rm = TRUE
     ) +
   geom_text(
-    data = df_highlight,
+    data = df_highlight1,
     mapping = aes(
       y = CA.Distance.Nominal.km, label = paste(
         "\n\n\n\n",
         Object, "\n",
-        scales::comma(round(CA.Distance.Nominal.km)), "km\n",
+        # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
         Close.Approach.Date
         ),
-      color = "Within 100,000 km"
+      color = "Within Lunar Distance"
       ),
-    # color = "red",
     size = 3,
     alpha = .7,
     na.rm = TRUE
-    # , check_overlap = TRUE
+    ) +
+  geom_text(
+    data = df_highlight0,
+    mapping = aes(
+      y = CA.Distance.Nominal.km, label = paste(
+        "\n\n\n\n",
+        Object, "\n",
+        # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
+        Close.Approach.Date
+        ),
+      color = "Within Lunar Distance (past)"
+      ),
+    size = 3,
+    alpha = .7,
+    na.rm = TRUE
+    ) +
+  annotate(
+    "text",
+    x = today(),
+    y = LUNAR_DISTANCE,
+    label = paste0("lunar distance (", scales::comma(LUNAR_DISTANCE), " km)                                      "),
+    color = "red3",
+    alpha = .7,
+    size = 4
     ) +
   scale_color_manual(values = c("black", "blue", "grey", "red", "purple")) +
-  theme_minimal()
-  # theme_wsj()
-# +
-#   theme(
-#     axis.text.x = element_text(angle = 90, hjust = 1),
-#     legend.position = "top"
-#     )
+  scale_y_continuous(label = scales::comma, trans = "log10") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    legend.position = "top"
+    )
 
 ```
 
