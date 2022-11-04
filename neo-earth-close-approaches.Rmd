@@ -202,18 +202,3 @@ df_future %>%
     )
 
 ```
-
-```{r, echo=FALSE}
-
-# ttt <- df %>%
-#   filter(Is.Future) %>%
-#   mutate(Is.Future = NULL) %>%
-#   filter(Close.Approach.Date < today() %m+% months(10 * 12)) %>%
-#   arrange(CA.Distance.Nominal.km)
-# 
-# ttt %>%
-#   flextable() %>%
-#   theme_zebra() %>%
-#   autofit()
-
-```
