@@ -1,10 +1,9 @@
 ---
 title: "NEO Earth Close Approaches"
-output:
-  pdf_document:
-    # toc: true
-#classoption:
-#  landscape
+output: pdf_document
+geometry: margin=0.5in
+classoption:
+  landscape
 ---
 
 ```{r, include=FALSE}
