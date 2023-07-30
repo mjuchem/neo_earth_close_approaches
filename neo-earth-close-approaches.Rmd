@@ -15,13 +15,16 @@ library(stringr)
 library(reshape2)
 library(flextable)
 library(ggthemes)
+library(jsonlite)
+library(httr)
+library(rjson)
 
 ```
 
 ```{r, echo=FALSE, include=FALSE}
 
 # https://cneos.jpl.nasa.gov/ca/
-df.raw <- read.xlsx("../data/external/nasa.gov/NEO_Earth_Close_Approaches_2022-11-03.xlsx")
+df.raw <- read.xlsx("../data/external/nasa.gov/NEO Earth Close Approaches_2023-07-02.xlsx")
 
 ```
 

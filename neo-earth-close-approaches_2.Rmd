@@ -1,0 +1,130 @@
+---
+title: "NEO Earth Close Approaches"
+output: pdf_document
+geometry: margin=0.5in
+classoption:
+  landscape
+---
+
+```{r, include=FALSE}
+
+library(tidyverse)
+library(lubridate)
+library(openxlsx)
+library(stringr)
+library(reshape2)
+library(flextable)
+library(ggthemes)
+library(jsonlite)
+# library(httr)
+# library(rjson)
+
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+# https://cneos.jpl.nasa.gov/ca/
+t <- read_json("https://ssd-api.jpl.nasa.gov/cad.api?dist-max=100LD&date-min=2020-01-01", simplifyVector = TRUE)
+data.raw <- as.data.frame(t$data)
+colnames(data.raw) <- t$fields
+remove(t)
+
+```
+
+```{r, echo=FALSE, warning=FALSE, fig.width=20, fig.height=12}
+
+LUNAR_DISTANCE <- 384402
+ASTRONOMIAL_UNITS <- 149597900
+AU_to_LD <- 149597900 / 384402
+
+data <- data.raw %>%
+  mutate(
+    cd = ymd_hm(cd),
+    dist = as.numeric(dist),
+    dist_ld = dist * AU_to_LD,
+    h = as.numeric(h),
+    Is.Future = ifelse(cd >= today(), TRUE, FALSE)
+    ) %>%
+  filter(
+    cd >= ymd_hm("2023-06-01 00:00")
+    )
+
+data %>%
+  ggplot(aes(x = cd, y = dist_ld, color = Is.Future)) +
+  labs(
+    caption = "Source: https://cneos.jpl.nasa.gov/ca/",
+    x = "Close Approach Date",
+    y = "Distance (LD)",
+  #   color = "",
+  #   size = "Diameter"
+  ) +
+  geom_vline(xintercept = now(), color = "red", alpha = .3) +
+  geom_hline(yintercept = 0, color = "black", alpha = .3) +
+  geom_hline(yintercept = 1, color = "red", alpha = .3) +
+  geom_point(
+    alpha = .3
+    # , size = h
+    ) +
+  # geom_point(
+  #   data = df_past,
+  #   mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Past"),
+  #   na.rm = TRUE
+  #   ) +
+  # geom_point(
+  #   data = df_highlight2,
+  #   mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Larger than 1 km"),
+  #   na.rm = TRUE
+  #   ) +
+  # geom_point(
+  #   data = df_highlight,
+  #   mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Within Lunar Distance"),
+  #   na.rm = TRUE
+  #   ) +
+  # geom_text(
+  #   data = df_highlight1,
+  #   mapping = aes(
+  #     y = CA.Distance.Nominal.km, label = paste(
+  #       "\n\n\n\n",
+  #       Object, "\n",
+  #       # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
+  #       Close.Approach.Date
+  #       ),
+  #     color = "Within Lunar Distance"
+  #     ),
+  #   size = 3,
+  #   alpha = .7,
+  #   na.rm = TRUE
+  #   ) +
+  # geom_text(
+  #   data = df_highlight0,
+  #   mapping = aes(
+  #     y = CA.Distance.Nominal.km, label = paste(
+  #       "\n\n\n\n",
+  #       Object, "\n",
+  #       # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
+  #       Close.Approach.Date
+  #       ),
+  #     color = "Within Lunar Distance (past)"
+  #     ),
+  #   size = 3,
+  #   alpha = .7,
+  #   na.rm = TRUE
+  #   ) +
+  # annotate(
+  #   "text",
+  #   x = today(),
+  #   y = LUNAR_DISTANCE,
+  #   label = paste0("lunar distance (", scales::comma(LUNAR_DISTANCE), " km)                                      "),
+  #   color = "red3",
+  #   alpha = .7,
+  #   size = 4
+  #   ) +
+  # scale_color_manual(values = c("black", "blue", "grey", "red", "purple")) +
+  scale_y_continuous(label = scales::comma, trans = "log10") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    legend.position = "top"
+    )
+
+```
