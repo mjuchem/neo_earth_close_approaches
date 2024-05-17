@@ -1,7 +1,5 @@
-# Earth Close Approaches
+# NASA Earth Close Approaches
 
-## How-to
-
-- Download data from https://cneos.jpl.nasa.gov/ca/
-
-- Save as Excel into ../data/external/nasa.gov/cneos_closeapproach_data.xlsx
+- Uses NASA's API to download data (https://cneos.jpl.nasa.gov/ca/).
+- PDF with close approaches chart.
+- 3D polynomial regression model.

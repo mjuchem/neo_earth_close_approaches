@@ -1,186 +1,99 @@
 ---
-title: "NEO Earth Close Approaches"
 output: pdf_document
-geometry: margin=0.5in
+geometry: margin=0.1in
 classoption:
   landscape
 ---
 
-```{r, include=FALSE}
+```{r, include=FALSE, warning=FALSE}
 
 library(tidyverse)
 library(lubridate)
 library(openxlsx)
 library(stringr)
 library(reshape2)
-library(flextable)
-library(ggthemes)
-library(jsonlite)
-library(httr)
-library(rjson)
+
+LUNAR_DISTANCE <- 384402
+ASTRONOMICAL_UNITS <- 149597900
+AU_to_LD <- ASTRONOMICAL_UNITS / LUNAR_DISTANCE
 
 ```
 
 ```{r, echo=FALSE, include=FALSE}
 
-# https://cneos.jpl.nasa.gov/ca/
-df.raw <- read.xlsx("../data/external/nasa.gov/NEO Earth Close Approaches_2023-07-02.xlsx")
+d.raw <- read.xlsx("data/neo-earth-close-approaches_LATEST.xlsx")
+
+d <- d.raw %>%
+  mutate(
+    cd = ymd_hm(cd),
+    cd_date = as.Date(cd),
+    dist = as.numeric(dist),
+    dist_min = as.numeric(dist_min),
+    dist_max = as.numeric(dist_max),
+    dist_ld = dist * AU_to_LD,
+    v_rel = as.numeric(v_rel),
+    v_inf = as.numeric(v_inf),
+    diameter = as.numeric(diameter),
+    diameter_sigma = as.numeric(diameter_sigma),
+    h = as.numeric(h),
+    Is.Future = ifelse(cd >= today(), TRUE, FALSE),
+    month = month(cd),
+    year = year(cd)
+  )
+
+summary(d)
 
 ```
 
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, fig.width=30, fig.height=30}
 
-LUNAR_DISTANCE <- 384402
-
-df <- df.raw %>%
-  mutate(
-    
-    V.infinity.km_s = as.numeric(`V.infinity(km/s)`),
-    V.relative.km_s = `V.relative(km/s)`,
-    
-    # tmp = gsub("&gt;", "", `CA.DistanceNominal.(LD.|.au)`),
-    # CA.Distance.Nominal.LD = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 1])),
-    CA.Distance.Nominal.au = `CA.DistanceNominal.(au)`,
-    CA.Distance.Nominal.km = CA.Distance.Nominal.au * 149597900,
-    CA.Distance.Nominal.LD = CA.Distance.Nominal.km / LUNAR_DISTANCE,
-    
-    # tmp = gsub("&gt; ", "", `CA.Distance.Minimum.(LD.|.au)`),
-    # tmp = gsub("\t", "", `CA.Distance.Minimum.(LD.|.au)`),
-    # CA.Distance.Minimum.LD = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 1])),
-    # CA.Distance.Minimum.au = as.numeric(str_trim(str_split_fixed(tmp, " | ", 3)[, 3])),
-    # CA.Distance.Minimum.km = CA.Distance.Minimum.au * 149597900,
-    
-    tmp = gsub("&lt;", "", `Close-Approach.(CA).Date`),
-    Close.Approach.Date = ymd_hm(str_split_fixed(tmp, "±", 3)[, 1]),
-    Close.Approach.Date.Err = str_split_fixed(tmp, "±", 3)[, 2],
-    
-    Is.Future = Close.Approach.Date >= today()
-    ) %>%
-  arrange(Close.Approach.Date) %>%
-  mutate(
-    Diameter = gsub("-", "", Diameter),
-    Diameter = gsub("  ", " ", Diameter),
-    Diameter = gsub("  ", " ", Diameter),
-    Diameter = gsub("  ", " ", Diameter),
-    Diameter.format = case_when(
-      Diameter == "n/a" ~ 3,
-      grepl("±", Diameter) ~ 2,
-      TRUE ~ 1
-      ),
-    tmp1 = str_trim(str_split_fixed(Diameter, " ", 6)[, 1]),
-    tmp2 = str_trim(str_split_fixed(Diameter, " ", 6)[, 2]),
-    tmp3 = str_trim(str_split_fixed(Diameter, " ", 6)[, 3]),
-    tmp4 = str_trim(str_split_fixed(Diameter, " ", 6)[, 4]),
-    tmp5 = str_trim(str_split_fixed(Diameter, "±", 6)[, 1]),
-    tmp6 = str_trim(str_split_fixed(Diameter, "±", 6)[, 2]),
-    tmp7 = str_trim(str_split_fixed(tmp6, " ", 6)[, 1])
-    ) %>%
-  mutate(
-    Diameter.min = case_when(
-      Diameter.format == 1 ~ if_else(tmp2 == "km", as.numeric(tmp1) * 1000, as.numeric(tmp1)),
-      Diameter.format == 2 ~ (as.numeric(tmp5) - as.numeric(tmp7)) * 1000,
-      Diameter.format == 3 ~ as.numeric(tmp2)
-      ),
-    Diameter.max = case_when(
-      Diameter.format == 1 ~ if_else(tmp4 == "km", as.numeric(tmp3) * 1000, as.numeric(tmp3)),
-      Diameter.format == 2 ~ (as.numeric(tmp5) + as.numeric(tmp7)) * 1000,
-      Diameter.format == 3 ~ as.numeric(tmp2)
-      )
-    ) %>%
-  select(
-    Object,
-    Close.Approach.Date,
-    CA.Distance.Nominal.km,
-    Diameter.min,
-    Diameter.max,
-    V.infinity.km_s,
-    V.relative.km_s,
-    Is.Future
+df <- d %>%
+  filter(
+    cd >= ymd_hm("2024-01-01 00:00")
     )
 
-write.xlsx(df, "../data/processed/neo-earth-close-approaches.xlsx")
+df_highlight <- df %>%
+  filter(
+    Is.Future,
+    dist_ld <= 10
+    )
 
-```
-
-```{r, echo=FALSE, warning=FALSE, fig.width=20, fig.height=12}
-
-df_past <- df %>%
-  filter(!Is.Future)
-
-df_future <- df %>%
-  filter(Is.Future)
-
-df_highlight <- df_future %>%
-  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE)
-
-df_highlight0 <- df_past %>%
-  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE) %>%
-  filter(Diameter.min >= 100)
-
-df_highlight1 <- df_future %>%
-  filter(CA.Distance.Nominal.km <= LUNAR_DISTANCE) %>%
-  filter(Diameter.min >= 100)
-
-df_highlight2 <- df_future %>%
-  filter(Diameter.min >= 1000)
-
-df_future %>%
-  ggplot(aes(x = as.Date(Close.Approach.Date), y = CA.Distance.Nominal.km)) +
+df %>%
+  ggplot(aes(x = cd, y = dist_ld, size = v_rel)) +
   labs(
+    title = "Earth Close Approaches",
     caption = "Source: https://cneos.jpl.nasa.gov/ca/",
     x = "Close Approach Date",
-    y = "Distance (km)",
+    y = "Distance (LD)",
     color = "",
-    size = "Diameter"
-    ) +
-  geom_vline(xintercept = today(), color = "red", alpha = .3) +
-  geom_hline(yintercept = LUNAR_DISTANCE, color = "red", alpha = .3) +
+    size = "relative velocity (km/s)",
+    alpha = "diameter (km)"
+  ) +
+  geom_vline(xintercept = max((df %>% filter(!Is.Future))$cd), color = "red", alpha = .3) +
   geom_hline(yintercept = 0, color = "black", alpha = .3) +
+  geom_hline(yintercept = 1, color = "red", alpha = .3) +
   geom_point(
-    data = df_past,
-    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Past"),
-    na.rm = TRUE
-    ) +
-  geom_point(
-    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Future"),
-    alpha = .2,
-    na.rm = TRUE
-    ) +
-  geom_point(
-    data = df_highlight2,
-    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Larger than 1 km"),
-    na.rm = TRUE
+    alpha = .3
     ) +
   geom_point(
     data = df_highlight,
-    mapping = aes(size = Diameter.min, alpha = V.relative.km_s, color = "Within Lunar Distance"),
-    na.rm = TRUE
-    ) +
-  geom_text(
-    data = df_highlight1,
     mapping = aes(
-      y = CA.Distance.Nominal.km, label = paste(
-        "\n\n\n\n",
-        Object, "\n",
-        # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
-        Close.Approach.Date
-        ),
-      color = "Within Lunar Distance"
+      color = "Within 10 Lunar Distances"
       ),
-    size = 3,
-    alpha = .7,
     na.rm = TRUE
     ) +
   geom_text(
-    data = df_highlight0,
+    data = df_highlight,
     mapping = aes(
-      y = CA.Distance.Nominal.km, label = paste(
-        "\n\n\n\n",
-        Object, "\n",
-        # scales::comma(round(CA.Distance.Nominal.km)), "km\n",
-        Close.Approach.Date
+      label = paste(
+        "\n\n\n\n\n",
+        des, "\n",
+        scales::comma(dist_ld, accuracy = 0.01), "ld\n",
+        scales::comma(v_rel, accuracy = 0.1), "km/s\n",
+        cd_date,
+        ifelse(is.na(diameter), "", diameter)
         ),
-      color = "Within Lunar Distance (past)"
+      color = "Within 10 Lunar Distances"
       ),
     size = 3,
     alpha = .7,
@@ -188,15 +101,18 @@ df_future %>%
     ) +
   annotate(
     "text",
-    x = today(),
-    y = LUNAR_DISTANCE,
-    label = paste0("lunar distance (", scales::comma(LUNAR_DISTANCE), " km)                                      "),
+    x = now(),
+    y = 1,
+    label = paste0("lunar distance (", scales::comma(LUNAR_DISTANCE, accuracy = 0.01), " km)                                      "),
     color = "red3",
     alpha = .7,
     size = 4
     ) +
-  scale_color_manual(values = c("black", "blue", "grey", "red", "purple")) +
-  scale_y_continuous(label = scales::comma, trans = "log10") +
+  # scale_color_manual(values = c("black", "blue", "grey", "red", "purple")) +
+  scale_y_continuous(
+    label = scales::comma,
+    trans = "log10"
+    ) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 90, hjust = 1),
