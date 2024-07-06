@@ -13,7 +13,7 @@ AU_to_LD <- ASTRONOMICAL_UNITS / LUNAR_DISTANCE
 
 # https://cneos.jpl.nasa.gov/ca/
 
-t <- read_json("https://ssd-api.jpl.nasa.gov/cad.api?dist-max=1000LD&date-min=2010-01-01&diameter=true&fullname=true", simplifyVector = TRUE)
+t <- read_json("https://ssd-api.jpl.nasa.gov/cad.api?dist-max=1000LD&date-min=1995-01-01&diameter=true&fullname=true", simplifyVector = TRUE)
 data.raw <- as.data.frame(t$data)
 colnames(data.raw) <- t$fields
 remove(t)

@@ -27,14 +27,14 @@ d <- d.raw %>%
     Is.Future = ifelse(cd >= today(), TRUE, FALSE),
     month = month(cd),
     year = year(cd)
-  )
+    )
 
 open3d()
 
 d.past <- d %>%
   filter(
     !Is.Future
-  )
+    )
 
 INCOMPLETE_YM <- max(d.past$cd)
 
@@ -42,22 +42,23 @@ d_sum <- d.past %>%
   filter(
     dist_ld <= 100,
     !(month(cd) == month(INCOMPLETE_YM) & year(cd) == year(INCOMPLETE_YM))
-  ) %>%
+    ) %>%
   group_by(year, month) %>%
   summarize(
     .groups = "keep",
     n = n()
-  ) %>%
+    ) %>%
   ungroup()
 
 m <- lm(
   formula = n ~
-    poly(year, 4)
-  + poly(month, 4)
+    poly(year, 2)
+  # + poly(month, 4)
   + poly(year * month, 4)
-  + poly(year / month, 4),
+  # + poly(year / month, 2)
+  ,
   data = d_sum
-)
+  )
 summary(m)
 
 d_sum$n.pred <- predict(m, d_sum)
@@ -78,7 +79,7 @@ segments3d(
   z = t(cbind(d_sum$month, d_sum$month)),
   color = "red",
   alpha = .5
-)
+  )
 
 aspect3d(x = 1, y = 1, z = 1)
 
@@ -106,7 +107,7 @@ surface3d(
   z = z$month,
   front = "lines",
   back = "lines"
-)
+  )
 
 rgl.snapshot(filename = "output/neo-earth-close-approaches.png")
 
